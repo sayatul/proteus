@@ -165,10 +165,8 @@ class _TrytondMethod(object):
         else:
             raise TypeError('%s is not callable' % self._name)
 
-        with Transaction().start(self._config.database_name,
-                self._config.user, readonly=rpc.readonly) as transaction:
-            Cache.clean(self._config.database_name)
-            args, kwargs, transaction.context, transaction.timestamp = \
+        with Transaction().set_user(self._config.user):
+            args, kwargs, Transaction().context, Transaction().timestamp = \
                 rpc.convert(self._object, *args)
             meth = getattr(self._object, self._name)
             if (rpc.instantiate is None
@@ -182,9 +180,6 @@ class _TrytondMethod(object):
                 else:
                     result = [rpc.result(meth(i, *args, **kwargs))
                         for i in inst]
-            if not rpc.readonly:
-                transaction.commit()
-            Cache.resets(self._config.database_name)
         return result
 
 
@@ -229,20 +224,15 @@ class TrytondConfig(Config):
         self._user = user
         self.config_file = config_file
 
-        Pool.start()
         self.pool = Pool(database_name)
-        self.pool.init()
 
-        with Transaction().start(self.database_name, 0) as transaction:
-            Cache.clean(database_name)
+        with Transaction().set_context(self.context):
             User = self.pool.get('res.user')
-            transaction.context = self.context
             self.user = User.search([
                 ('login', '=', user),
                 ], limit=1)[0].id
-            with transaction.set_user(self.user):
+            with Transaction().set_user(self.user):
                 self._context = User.get_preferences(context_only=True)
-            Cache.resets(database_name)
     __init__.__doc__ = object.__init__.__doc__
 
     def __repr__(self):
