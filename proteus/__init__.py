@@ -1100,7 +1100,16 @@ class Wizard(object):
             if 'view' in result:
                 view = result['view']
                 self.form = Model.get(view['fields_view']['model'])()
+                missing_fields = []
+                for field, definition in view['fields_view']['fields'].iteritems():
+                    if not field in self.form._fields:
+                        self.form._fields[field] = definition
+                        missing_fields.append(field)
                 self.form._default_set(view['defaults'])
+                for field in missing_fields:
+                    setattr(self.form, field, self.form._values[field])
+                    setattr(self.form, '__%s_value' % field, self.form._values[field])
+                    setattr(self.form, '__%s_eval' % field, self.form._values[field])
                 self.states = [b['state'] for b in view['buttons']]
                 self.form_state = view['state']
             else:
