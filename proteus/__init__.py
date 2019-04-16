@@ -1060,9 +1060,11 @@ class Wizard(object):
         self.form_state = None
         self.actions = []
         self._config = config or proteus.config.get_config()
-        self._context = context or {}
+        self._context = self._config.context
+        if context:
+            self._context.update(context)
         self._proxy = self._config.get_proxy(name, type='wizard')
-        result = self._proxy.create(self._config.context)
+        result = self._proxy.create(self._context)
         self.session_id, self.start_state, self.end_state = result
         self.states = [self.start_state]
         self.models = models
